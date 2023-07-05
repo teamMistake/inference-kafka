@@ -5,6 +5,7 @@ from services import JamoService
 from transformers import AutoTokenizer
 import torch
 
+torch.set_grad_enabled(False)
 
 bootstrap = os.environ["KAFKA_BOOTSTRAP_ADDRESS"]
 req = os.environ["KAFKA_REQ_TOPIC"]

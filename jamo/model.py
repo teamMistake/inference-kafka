@@ -395,8 +395,3 @@ def apply_rope(x: torch.Tensor, rope_cache) -> torch.Tensor:
 
 def is_torch_2():
     return torch.__version__[0] == "2"
-
-
-if __name__ == "__main__":
-    jamo = JAMO.from_name("supersmall")
-    jamo.configure_optimizers()

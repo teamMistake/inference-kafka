@@ -47,9 +47,9 @@ class Jamo():
         parsed_prompt = f"{self.SOS_TOKEN} {parsed_prompt}"
 
         prompt_idx = self.encode(parsed_prompt).squeeze(0)
-        kwgs = {"idx":prompt_idx, "max_token":max_token}
+        # kwgs = {"idx":prompt_idx, "max_token":max_token}
 
-        predicted_idx = self.jamo.generate_idx(**kwgs)
+        predicted_idx = self.jamo.generate_idx(prompt_idx, max_token=max_token)
         predicted_text = self.decode(predicted_idx)
         answer = Jamo.clean_response(predicted_text)
 
@@ -61,12 +61,12 @@ class Jamo():
         cur = len(parsed_prompt)
 
         prompt_idx = self.encode(parsed_prompt).squeeze(0)
-        kwgs = {"idx":prompt_idx, "max_token":max_token}
+        # kwgs = {"idx":prompt_idx, "max_token":max_token}
 
         full_answer = ""
 
         try:
-            for predicted_idx in self.jamo.streaming_generate_idx(**kwgs):
+            for predicted_idx in self.jamo.streaming_generate_idx(prompt_idx, max_token=max_token):
                 target = self.decode(predicted_idx)
                 if predicted_idx == None:
                     full_answer = Jamo.clean_response(target)
@@ -153,3 +153,5 @@ for msg in consumer:
             'resp_full': respThink,
             'eos': True
         }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", b'1')])
+
+

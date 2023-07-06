@@ -1,4 +1,4 @@
-pydantic
+pydantic==1.9.1
 kafka-python==2.0.2
 torch==2.0.1
 transformers==4.21.2

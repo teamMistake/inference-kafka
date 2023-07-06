@@ -6,21 +6,16 @@ import torch
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from settings import get_settings
 from managers import (
-    get_jamo_manager
+    JamoModelManager
 )
-
-env = get_settings()
-
 
 class JamoService:
     def __init__(
         self,
-        jamo_manager=get_jamo_manager,
     ):
-        self.model = jamo_manager
-        self.block_size = env.BLOCK_SIZE
+        self.model = JamoModelManager()
+        self.block_size = 256
 
     @torch.inference_mode()
     def generate_idx(
@@ -40,14 +35,16 @@ class JamoService:
         empty[:T] = idx
         idx = empty
         input_pos = torch.arange(0, T, device=device)
+        
+        if type(max_token) != type(1) or max_token <= 0:
+            raise ValueError("Please, check you sent max_token query.")
 
         # generate max_new_tokens tokens
         for _ in range(max_token):
             # forward
             x = idx.index_select(0, input_pos).view(1, -1)
-
             idx_next = self.model.predict(input=x, max_seq_length=max_seq_length, input_pos=input_pos, temperature=temperature, top_k=top_k)
-            
+
             if idx_next == eos_id:
                 break
             

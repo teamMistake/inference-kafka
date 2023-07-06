@@ -7,23 +7,20 @@ import torch
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from settings import get_settings
 from jamo import JAMO
-
-env = get_settings()
 
 class JamoModelManager():
     def __init__(self): self.init_model()
 
     def init_model(self):
-        self.model = JAMO.from_pretrained(env.JAMO_MODEL_SIZE, env.JAMO_MODEL_PATH, env.DEVICE)
+        self.model = JAMO.from_pretrained("small", "model_store/production_A.tar", "cpu")
         self.model.eval()
 
     @torch.inference_mode()
     def predict(self, input: torch.Tensor, max_seq_length: int, input_pos: torch.Tensor, temperature: float, top_k: int) -> torch.Tensor:
         next_token_idx = 0
         try:
-            logits = self.model(input, max_seq_length, input_pos)
+            logits = self.model(input, max_seq_length=max_seq_length, input_pos=input_pos)
             logits = logits[0, -1] / temperature
 
             if top_k is not None:

@@ -144,7 +144,7 @@ class JAMO(nn.Module):
         )
 
     def build_mask_cache(self, idx: torch.Tensor) -> torch.Tensor:
-        ones = torch.ones((self.config.block_size, self.config.block_size), device=idx.device, dtype=torch.bool)
+        ones = torch.ones((256, 256), device=idx.device, dtype=torch.bool)
         return torch.tril(ones).unsqueeze(0).unsqueeze(0)
 
     def reset_cache(self) -> None:
@@ -395,3 +395,8 @@ def apply_rope(x: torch.Tensor, rope_cache) -> torch.Tensor:
 
 def is_torch_2():
     return torch.__version__[0] == "2"
+
+
+if __name__ == "__main__":
+    jamo = JAMO.from_name("supersmall")
+    jamo.configure_optimizers()

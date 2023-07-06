@@ -6,6 +6,7 @@ from transformers import AutoTokenizer
 import torch
 
 torch.set_grad_enabled(False)
+torch.set_float32_matmul_precision("high")
 
 bootstrap = os.environ["KAFKA_BOOTSTRAP_ADDRESS"]
 req = os.environ["KAFKA_REQ_TOPIC"]

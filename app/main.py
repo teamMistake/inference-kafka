@@ -67,18 +67,25 @@ class Jamo():
         full_answer = ""
 
         try:
+            tmp_answer = ""
             for predicted_idx in self.jamo.streaming_generate_idx(prompt_idx, max_token=max_token):
-                target = self.decode(predicted_idx)
                 if predicted_idx == None:
-                    full_answer = Jamo.clean_response(target)
+                    full_answer = Jamo.clean_response(tmp_answer)
                     raise StopIteration
+                
+                target = self.decode(predicted_idx)
                 target = target[:-1]
+                tmp_answer = target
+                
                 new = target[cur:]
                 cur = len(target)
                 yield new, False
 
         except StopIteration:
-            return full_answer, True
+            print("STOPPPPPPPPPPPPPPPPPPPp")
+            yield full_answer, True
+        
+        return
 
     def encode(self, text) -> torch.Tensor:
         try:
@@ -136,11 +143,14 @@ for msg in consumer:
     if parsed['stream']:
         seq = 0
         total = ""
-        for part, eos in model.generator(req, max_token=max_token):
+        for (part, eos) in model.generator(req, max_token=max_token):
             seq += 1
+            print(seq)
             if eos:
+                print("end of state")
                 total = part
             else: 
+                print("not eos")
                 total += part
             producer.send(resp, json.dumps({
                 'resp_partial': part,

@@ -61,7 +61,7 @@ class JamoService:
         idx: torch.Tensor,
         max_token: int,
         temperature: float=0.8, 
-        top_k: int=15,
+        top_k: int=20,
         eos_id=2
     ) -> T.List[list]:
         T = idx.size(0)
@@ -76,6 +76,7 @@ class JamoService:
 
         # generate max_new_tokens tokens
         for i in range(max_token):
+            print(i)
             x = idx.index_select(0, input_pos).view(1, -1)
 
             idx_next = self.model.predict(input=x, max_seq_length=max_seq_length, input_pos=input_pos, temperature=temperature, top_k=top_k)
@@ -89,6 +90,9 @@ class JamoService:
             if (i+1)%3==0:
                 yield idx[:input_pos]
 
+        print("clean cache")
         self.model.clean_cache()
+        print("return tokens lastly")
         yield idx[:input_pos]
+        print("for eos")
         yield None

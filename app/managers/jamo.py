@@ -13,7 +13,7 @@ class JamoModelManager():
     def __init__(self): self.init_model()
 
     def init_model(self):
-        self.model = JAMO.from_pretrained("small", "model_store/production_A.tar", "cpu")
+        self.model = JAMO.from_pretrained("small", "model_store/jamo.tar", "cpu")
         self.model.eval()
 
     @torch.inference_mode()

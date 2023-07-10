@@ -4,6 +4,8 @@ from kafka import KafkaConsumer, KafkaProducer
 from services import JamoService
 from transformers import AutoTokenizer
 import torch
+import wget
+import glob
 
 torch.set_grad_enabled(False)
 torch.set_float32_matmul_precision("high")
@@ -16,6 +18,12 @@ password = os.environ["KAFKA_PASSWORD"]
 node_id = os.environ["NODE_ID"]
 
 model_name = os.environ["MODEL_NAME"]
+model_url = os.environ["MODEL_URL"]
+
+wget.download(model_url, out="model_store/jamo.tar")
+# target_file = glob.glob("model_store/*.tar")[0]
+# new_filename = "model_store/jamo.tar"
+# os.rename(target_file, new_filename)
 
 consumer = KafkaConsumer(req, group_id=f'inf-{model_name}',
                          client_id=f'inference-cons-{node_id}',
@@ -42,7 +50,9 @@ class Jamo():
     def generate(
         self,
         prompt:str,
-        max_token:int
+        max_token:int,
+        temperature: float, 
+        top_k: int
     ):
         parsed_prompt = Jamo.parsing_prmopt(prompt)
         parsed_prompt = f"{self.SOS_TOKEN} {parsed_prompt}"
@@ -50,13 +60,13 @@ class Jamo():
         prompt_idx = self.encode(parsed_prompt).squeeze(0)
         # kwgs = {"idx":prompt_idx, "max_token":max_token}
 
-        predicted_idx = self.jamo.generate_idx(prompt_idx, max_token=max_token)
+        predicted_idx = self.jamo.generate_idx(prompt_idx, max_token=max_token, temperature=temperature, top_k=top_k)
         predicted_text = self.decode(predicted_idx)
         answer = Jamo.clean_response(predicted_text)
 
         return answer
 
-    def generator(self, prompt: str, max_token: int):
+    def generator(self, prompt: str, max_token: int, temperature: float, top_k: int):
         parsed_prompt = Jamo.parsing_prmopt(prompt)
         parsed_prompt = f"{self.SOS_TOKEN} {parsed_prompt}"
         cur = len(parsed_prompt)
@@ -68,7 +78,7 @@ class Jamo():
 
         try:
             tmp_answer = ""
-            for predicted_idx in self.jamo.streaming_generate_idx(prompt_idx, max_token=max_token):
+            for predicted_idx in self.jamo.streaming_generate_idx(prompt_idx, max_token=max_token, temperature=temperature, top_k=top_k):
                 if predicted_idx == None:
                     full_answer = Jamo.clean_response(tmp_answer)
                     raise StopIteration
@@ -82,7 +92,6 @@ class Jamo():
                 yield new, False
 
         except StopIteration:
-            print("STOPPPPPPPPPPPPPPPPPPPp")
             yield full_answer, True
         
         return
@@ -139,18 +148,17 @@ for msg in consumer:
     parsed = json.loads(content)
     req = parsed['req']
     max_token = parsed["max_token"]
+    temperature: float = parsed["temperature"]
+    top_k: int = parsed["top_k"]
 
     if parsed['stream']:
         seq = 0
         total = ""
-        for (part, eos) in model.generator(req, max_token=max_token):
+        for (part, eos) in model.generator(req, max_token=max_token, temperature=temperature, top_k=top_k):
             seq += 1
-            print(seq)
             if eos:
-                print("end of state")
                 total = part
             else: 
-                print("not eos")
                 total += part
             producer.send(resp, json.dumps({
                 'resp_partial': part,
@@ -158,7 +166,7 @@ for msg in consumer:
                 'eos': eos
             }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", str(seq).encode())])
     else:   
-        respThink = model.generate(req, max_token=max_token)
+        respThink = model.generate(req, max_token=max_token, temperature=temperature, top_k=top_k)
         producer.send(resp, json.dumps({
             'resp_partial': respThink,
             'resp_full': respThink,

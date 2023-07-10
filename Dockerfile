@@ -5,7 +5,7 @@ COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 
-COPY ./model_store /app/model_store
+# COPY ./model_store /app/model_store
 COPY ./app /app
 
 CMD ["python","-u","main.py"]

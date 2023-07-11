@@ -73,7 +73,6 @@ class Jamo():
             prompt_idx = [self.tokenizer.encode(parsed_prompt) for parsed_prompt in parsed_prompts]
             max_length = max([len(i) for i in prompt_idx])
             prompt_idx = [[1]*(max_length-len(idx))+idx for idx in prompt_idx]
-            print(prompt_idx)
             prompt_idx = torch.LongTensor(prompt_idx)
 
             predicted_idx, finish_idxs = self.jamo.multibatch_generate(prompt_idx, max_token=max_token, temperature=temperature, top_k=top_k)
@@ -249,6 +248,13 @@ while True:
         # Handle the timeout exception
         if len(req_ids) == 0:
             continue
+
+    for req_id in req_ids:
+        producer.send(resp, json.dumps({
+            'resp_partial': "",
+            'resp_full': "",
+            'eos': False
+        }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", b'1')])
 
     if stream:
         seq = 0

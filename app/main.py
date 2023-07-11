@@ -21,7 +21,7 @@ node_id = os.environ["NODE_ID"]
 
 model_name = os.environ["MODEL_NAME"]
 model_url = os.environ["MODEL_URL"]
-max_batch_item = os.environ["MAX_BATCH_SIZE"]
+max_batch_item = int(os.environ["MAX_BATCH_SIZE"])
 
 wget.download(model_url, out="model_store/jamo.tar")
 # target_file = glob.glob("model_store/*.tar")[0]
@@ -44,7 +44,7 @@ producer = KafkaProducer(bootstrap_servers=bootstrap,
 
 class Jamo():
     def __init__(self):
-        self.jamo = JamoService("/Users/yoonseonghyeon/Desktop/deeplearning/inference_server/model_store/production_A.tar")
+        self.jamo = JamoService()
         self.tokenizer = AutoTokenizer.from_pretrained("hg_tokenizer")
         
         self.SOS_TOKEN = "<s>"
@@ -210,12 +210,12 @@ while True:
     top_k = None
 
     try:
-        set_timeout(3)  
+        set_timeout(1)  
 
         for msg in consumer:
             if len(req_ids) >= max_batch_item:
                 break
-            
+
             headerList = msg.headers
             model_match = False
             req_id = ''

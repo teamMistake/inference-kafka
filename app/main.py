@@ -9,6 +9,9 @@ import typing as T
 import signal
 # import intel_extension_for_pytorch as ipex
 
+with open("/tmp/healthy", "a") as f:
+    f.write("I'm GOOD, Definitely!")
+
 torch.set_grad_enabled(False)
 torch.set_float32_matmul_precision("high")
 
@@ -258,7 +261,7 @@ while True:
 
     if stream:
         seq = 0
-        already = range(len(reqs))
+        already = list(range(len(reqs)))
         total = {key:"" for key in already}
         for (parts, eoses) in model.generator(req, max_token=max_token, temperature=temperature, top_k=top_k):
             seq += 1

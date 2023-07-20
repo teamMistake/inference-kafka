@@ -245,8 +245,6 @@ while True:
             req = parsed['req']
             reqs.append(req)
             req_ids.append(req_id)
-
-        signal.alarm(0) 
     except TimeoutError:
         # Handle the timeout exception
         if len(req_ids) == 0:

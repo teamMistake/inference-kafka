@@ -7,10 +7,13 @@ import torch
 import wget
 import typing as T
 import signal
+import time
 # import intel_extension_for_pytorch as ipex
 
-with open("/tmp/healthy", "a") as f:
+print("?")
+with open("/tmp/healthy", "w") as f:
     f.write("I'm GOOD, Definitely!")
+print("??")
 
 torch.set_grad_enabled(False)
 torch.set_float32_matmul_precision("high")
@@ -27,6 +30,7 @@ model_url = os.environ["MODEL_URL"]
 max_batch_item = int(os.environ["MAX_BATCH_SIZE"])
 
 wget.download(model_url, out="model_store/jamo.tar")
+print("model download success")
 # target_file = glob.glob("model_store/*.tar")[0]
 # new_filename = "model_store/jamo.tar"
 # os.rename(target_file, new_filename)
@@ -37,7 +41,8 @@ consumer = KafkaConsumer(req, group_id=f'inf-{model_name}',
                          security_protocol="SASL_PLAINTEXT",
                          sasl_mechanism="SCRAM-SHA-512",
                          sasl_plain_username=username,
-                         sasl_plain_password=password)
+                         sasl_plain_password=password,
+                         consumer_timeout_ms=500)
 producer = KafkaProducer(bootstrap_servers=bootstrap,
                          client_id=f'inference-prod-{node_id}',
                          security_protocol="SASL_PLAINTEXT",
@@ -189,6 +194,7 @@ class Jamo():
         return cleaned_answer
 
 model = Jamo()
+print("Load the model")
 # model = ipex.optimize(model)
 
 # prompts = ["너는 누구니?", "안녕 반가워, 내 이름은 윤승현이라고 해.", "너가 가장 좋아하는 음식은?"]
@@ -212,16 +218,25 @@ while True:
     top_k = None
 
     try:
-        set_timeout(1)  
+        set_timeout(2)
 
-        for msg in consumer:
-            if len(req_ids) >= max_batch_item:
+        print("Get Requests")
+        start = time.time()
+
+        # for msg in consumer:
+        while True:
+            print("wait message")
+            if len(req_ids) >= max_batch_item or time.time() - start > 2:
                 break
+            print("msg poll start")
+            msg = consumer.poll(1)
+            print("msg poll end")
 
             headerList = msg.headers
             model_match = False
             req_id = ''
             for k, v in headerList:
+                print(k, v)
                 if k == "target_model":
                     if v.decode() == model_name:
                         model_match = True
@@ -233,36 +248,47 @@ while True:
             content = msg.value.decode()
 
             parsed = json.loads(content)
+            print(parsed)
 
             if stream == None:
                 stream = parsed['stream']
+                print("240", stream)
                 max_token = parsed["max_token"]
-                temperature: float = parsed["temperature"]
+                print("242", max_token)
+                temperature = parsed["temperature"]
+                print("244", temperature)
                 top_k: int = parsed["top_k"]
+                print("246", top_k)
             elif stream != parsed["stream"]:
+                print(stream, parsed["stream"])
                 continue
-
             req = parsed['req']
             reqs.append(req)
             req_ids.append(req_id)
+            print("req")
     except TimeoutError:
+        print("timeout error")
         # Handle the timeout exception
         if len(req_ids) == 0:
             continue
+    else: print("KAFKA ARE YOU SERIOUS?")
 
-    for req_id in req_ids:
-        producer.send(resp, json.dumps({
-            'resp_partial': "",
-            'resp_full': "",
-            'eos': False
-        }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", b'1')])
-
+    print("Generation Start")
     if stream:
-        seq = 0
+        for req_id in req_ids:
+            producer.send(resp, json.dumps({
+                'resp_partial': "",
+                'resp_full': "",
+                'eos': False
+            }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", '1'.encode())])
+
+        print("Streaming Creation")
+        seq = 1
         already = list(range(len(reqs)))
         total = {key:"" for key in already}
         for (parts, eoses) in model.generator(req, max_token=max_token, temperature=temperature, top_k=top_k):
             seq += 1
+            print(seq)
             for target_index in already:
                 part, eos = parts[target_index], eoses[target_index]
                 if eos:

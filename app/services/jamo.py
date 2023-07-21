@@ -74,7 +74,7 @@ class JamoService:
 
         T = idx.size(0)
         T_new = T + max_token
-        max_seq_length = min(T_new, self.block_size)
+        max_seq_length = min(T_new, self.block_size) - 2
 
         device, dtype = idx.device, idx.dtype
         empty = torch.empty(T_new, dtype=dtype, device=device)
@@ -83,7 +83,7 @@ class JamoService:
         input_pos = torch.arange(0, T, device=device)
 
         # generate max_new_tokens tokens
-        for _ in range(max_token):
+        for _ in range(max_seq_length):
             # forward
             x = idx.index_select(0, input_pos).view(1, -1)
             idx_next = self.model.predict(input=x, max_seq_length=max_seq_length, input_pos=input_pos, temperature=temperature, top_k=top_k)

@@ -10,17 +10,12 @@ import signal
 import time
 # import intel_extension_for_pytorch as ipex
 
-print("?")
-with open("/tmp/healthy", "w") as f:
-    f.write("I'm GOOD, Definitely!")
-print("??")
-
 torch.set_grad_enabled(False)
 torch.set_float32_matmul_precision("high")
 
 bootstrap = os.environ["KAFKA_BOOTSTRAP_ADDRESS"]
 req = os.environ["KAFKA_REQ_TOPIC"]
-resp = os.environ["KAFKA_RESP_TOPIC"]
+RESP_TOPIC = os.environ["KAFKA_RESP_TOPIC"]
 username = os.environ["KAFKA_USERNAME"]
 password = os.environ["KAFKA_PASSWORD"]
 node_id = os.environ["NODE_ID"]
@@ -29,8 +24,10 @@ model_name = os.environ["MODEL_NAME"]
 model_url = os.environ["MODEL_URL"]
 max_batch_item = int(os.environ["MAX_BATCH_SIZE"])
 
+print("model download start")
+start = time.time()
 wget.download(model_url, out="model_store/jamo.tar")
-print("model download success")
+print("model download success in", time.time()-start)
 # target_file = glob.glob("model_store/*.tar")[0]
 # new_filename = "model_store/jamo.tar"
 # os.rename(target_file, new_filename)
@@ -41,8 +38,7 @@ consumer = KafkaConsumer(req, group_id=f'inf-{model_name}',
                          security_protocol="SASL_PLAINTEXT",
                          sasl_mechanism="SCRAM-SHA-512",
                          sasl_plain_username=username,
-                         sasl_plain_password=password,
-                         consumer_timeout_ms=500)
+                         sasl_plain_password=password)
 producer = KafkaProducer(bootstrap_servers=bootstrap,
                          client_id=f'inference-prod-{node_id}',
                          security_protocol="SASL_PLAINTEXT",
@@ -195,6 +191,12 @@ class Jamo():
 
 model = Jamo()
 print("Load the model")
+
+
+print("?")
+with open("/tmp/healthy", "w") as f:
+    f.write("I'm GOOD, Definitely!")
+print("??")
 # model = ipex.optimize(model)
 
 # prompts = ["너는 누구니?", "안녕 반가워, 내 이름은 윤승현이라고 해.", "너가 가장 좋아하는 음식은?"]
@@ -217,96 +219,113 @@ while True:
     temperature = None
     top_k = None
 
-    try:
-        set_timeout(2)
+    # try:
+        # set_timeout(2)
 
-        print("Get Requests")
-        start = time.time()
+    print("Get Requests")
+    start = time.time()
 
-        # for msg in consumer:
-        while True:
-            print("wait message")
-            if len(req_ids) >= max_batch_item or time.time() - start > 2:
-                break
-            print("msg poll start")
-            msg = consumer.poll(1)
-            print("msg poll end")
+    target_time = 1000
+    poll_time = 50
 
-            headerList = msg.headers
-            model_match = False
-            req_id = ''
-            for k, v in headerList:
-                print(k, v)
-                if k == "target_model":
-                    if v.decode() == model_name:
-                        model_match = True
-                if k == "req_id":
-                    req_id = v.decode()
-            if not model_match:
-                continue
+    # for msg in consumer:
+    for _ in range(int(target_time//poll_time)):
+        # {TopicPartition(topic='model-req', partition=0): [ConsumerRecord(topic='model-req', partition=0, offset=110, timestamp=1689869876532, timestamp_type=0, key=None, value=b'{"req":"\xec\x98\xa4","context":[],"stream":true,"max_token":256,"temperature":0.8,"top_k":15}', headers=[('target_model', b'prod_a'), ('req_id', b'6640494b-859a-4eb0-a482-5c11debdc562'), ('__TypeId__', b'io.teammistake.suzume.data.InferenceRequest')], checksum=None, serialized_key_size=-1, serialized_value_size=85, serialized_header_size=113)]}
+        print("wait message")
+        if len(req_ids) >= max_batch_item or time.time() - start > target_time/1000:
+            print("timeout!")
+            break
+        records = consumer.poll(50, max_records=1)
+        if records is None or records == {}: continue
 
-            content = msg.value.decode()
+        for i in records.items():
+            msg = i[1][0]
+            break
 
-            parsed = json.loads(content)
-            print(parsed)
-
-            if stream == None:
-                stream = parsed['stream']
-                print("240", stream)
-                max_token = parsed["max_token"]
-                print("242", max_token)
-                temperature = parsed["temperature"]
-                print("244", temperature)
-                top_k: int = parsed["top_k"]
-                print("246", top_k)
-            elif stream != parsed["stream"]:
-                print(stream, parsed["stream"])
-                continue
-            req = parsed['req']
-            reqs.append(req)
-            req_ids.append(req_id)
-            print("req")
-    except TimeoutError:
-        print("timeout error")
-        # Handle the timeout exception
-        if len(req_ids) == 0:
+        headerList = msg.headers
+        model_match = False
+        req_id = ''
+        for k, v in headerList:
+            print(k, v)
+            if k == "target_model":
+                if v.decode() == model_name:
+                    model_match = True
+            if k == "req_id":
+                req_id = v.decode()
+        if not model_match:
             continue
-    else: print("KAFKA ARE YOU SERIOUS?")
+
+        content = msg.value.decode()
+
+        parsed = json.loads(content)
+        print(parsed)
+
+        if stream == None:
+            stream = parsed['stream']
+            print("240", stream)
+            max_token = parsed["max_token"]
+            print("242", max_token)
+            temperature = parsed["temperature"]
+            print("244", temperature)
+            top_k: int = parsed["top_k"]
+            print("246", top_k)
+        elif stream != parsed["stream"]:
+            print(stream, parsed["stream"])
+            continue
+        req = parsed['req']
+        reqs.append(req)
+        req_ids.append(req_id)
+        print("req")
+    # except TimeoutError:
+    #     print("timeout error")
+    #     # Handle the timeout exception
+    #     if len(req_ids) == 0:
+    #         continue
+    # else: 
+    #     print("WHY?")        
+    #     continue
+
+    if len(req_ids)==0:
+        continue
 
     print("Generation Start")
     if stream:
+        print("Streaming Creation")
+
         for req_id in req_ids:
-            producer.send(resp, json.dumps({
+            producer.send(RESP_TOPIC, json.dumps({
                 'resp_partial': "",
                 'resp_full': "",
                 'eos': False
             }).encode(), headers=[("req_id", req_id.encode()), ("seq_id", '1'.encode())])
 
-        print("Streaming Creation")
         seq = 1
         already = list(range(len(reqs)))
+        done = [0] * len(already)
         total = {key:"" for key in already}
         for (parts, eoses) in model.generator(req, max_token=max_token, temperature=temperature, top_k=top_k):
             seq += 1
-            print(seq)
+            print(parts, eoses)
             for target_index in already:
-                part, eos = parts[target_index], eoses[target_index]
-                if eos:
-                    total[target_index] = part
-                    already.remove(target_index)
-                else:
-                    total[target_index] += part
-                
-                producer.send(resp, json.dumps({
-                    'resp_partial': part,
-                    'resp_full': total[target_index],
-                    'eos': eos
-                }).encode(), headers=[("req_id", req_ids[target_index].encode()), ("seq_id", str(seq).encode())])
+                if done[target_index] != 1:
+                    part, eos = parts[target_index], eoses[target_index]
+                    if eos:
+                        total[target_index] = part
+                        done[target_index] = 1
+                        # already.remove(target_index)
+                    else:
+                        total[target_index] += part
+                    
+                    producer.send(RESP_TOPIC, json.dumps({
+                        'resp_partial': part,
+                        'resp_full': total[target_index],
+                        'eos': eos
+                    }).encode(), headers=[("req_id", req_ids[target_index].encode()), ("seq_id", str(seq).encode())])
     else:   
         respThinks = model.generate(reqs, max_token=max_token, temperature=temperature, top_k=top_k)
 
         for respThink, req_id in zip(respThinks, req_ids):
-            producer.send(resp, json.dumps({
+            producer.send(RESP_TOPIC, json.dumps({
                 'resp_partial': respThink,
                 'resp_full': respThink,
                 'eos': True

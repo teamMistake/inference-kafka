@@ -42,7 +42,7 @@ class JamoService:
         input_pos = torch.arange(0, T, device=device)
         # input_pos = torch.stack([pos, pos, pos], dim=0)
 
-        finished_idxs = torch.zeros(B)
+        finished_idxs = torch.zeros(B).to(device)
         
         # generate max_new_tokens tokens
         for i in range(max_token):
@@ -55,6 +55,7 @@ class JamoService:
 
             idx_next = idx_next.squeeze(1)
             # if all tensor look like [1, 1, 1] and break the loop
+            print(finished_idxs.dtype, eos_id.dtype)
             finished_idxs[idx_next==eos_id] = input_pos
             if not torch.any(finished_idxs==0):
                 break

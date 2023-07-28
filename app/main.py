@@ -25,6 +25,7 @@ model_url = os.environ["MODEL_URL"]
 max_batch_item = int(os.environ["MAX_BATCH_SIZE"])
 
 timeout_ms = os.environ["TIMEOUT_MS"]
+IS_CUDA = os.environ["IS_CUDA"]
 
 print("model download start")
 start = time.time()
@@ -50,7 +51,8 @@ producer = KafkaProducer(bootstrap_servers=bootstrap,
 
 class Jamo():
     def __init__(self):
-        self.jamo = JamoService()
+        self.device = "cuda" if IS_CUDA else "cpu"
+        self.jamo = JamoService(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("hg_tokenizer")
         
         self.SOS_TOKEN = "<s>"
@@ -255,7 +257,10 @@ while not killer.kill_now:
 
 #         ConsumerRecord(topic='model-req', partition=6, offset=377, timestamp=1690111922558, timestamp_type=0, key=None, value=b'{"req":"\xec\x95\x88\xeb\x85\x95","context":[{"type":"HUMAN","message":"\xec\x95\x88\xeb\x85\x95"},{"type":"BOT","message":"\xec\xa0\x80\xec\x99\x80 \xec\xa0\x9c \xec\xb9\x9c\xea\xb5\xac\xeb\x8a\x94 \xeb\xa7\xa4\xec\x9a\xb0 \xec\x9a\xb0\xec\x9a\xb8\xed\x95\x9c \xec\x83\x81\xed\x83\x9c\xec\x9e\x85\xeb\x8b\x88\xeb\x8b\xa4. \xec\x84\x9c\xeb\xa1\x9c \xec\x97\xb0\xeb\x9d\xbd\xed\x95\x98\xec\xa7\x80 \xec\x95\x8a\xea\xb3\xa0 \xec\xa7\x80\xeb\x82\xb4\xea\xb3\xa0 \xec\x9e\x88\xec\x96\xb4\xec\x84\x9c \xeb\x8b\xb5\xeb\x8b\xb5\xed\x95\x98\xea\xb3\xa0 \xec\x95\x88\xec\x93\xb0\xeb\x9f\xbd\xec\x8a\xb5\xeb\x8b\x88\xeb\x8b\xa4. \xea\xb7\xb8\xeb\xa6\xac\xea\xb3\xa0 \xec\x96\xbc\xeb\xa7\x88 \xec\xa0\x84\xea\xb9\x8c\xec\xa7\x80\xeb\xa7\x8c \xed\x95\xb4\xeb\x8f\x84 \xea\xb4\x9c\xec\xb0\xae\xec\x95\x98\xeb\x8a\x94\xeb\x8d\xb0 \xec\x9d\xb4\xec\x95\xbc\xea\xb8\xb0\xea\xb0\x80 \xec\x83\x9c\xeb\x8b\xa4\xea\xb0\x80 \xec\x9a\x94\xec\xa6\x98 \xeb\x8b\xa4\xec\x8b\x9c \xed\x99\x94\xed\x95\xb4 \xeb\xaa\xa8\xeb\x93\x9c\xeb\xa1\x9c \xeb\x8f\x8c\xec\x95\x84\xea\xb0\x94\xeb\x82\x98\xec\x9a\x94"}],"stream":true,"max_token":256,"temperature":0.8,"timestamp":"1690111922558","top_k":20}', headers=[('target_model', b'prod_a'), ('req_id', b'24367d12-8f3b-4dfd-b4d9-4a81cd02ad5e'), ('__TypeId__', b'io.teammistake.suzume.data.InferenceRequest')], checksum=None, serialized_key_size=-1, serialized_value_size=436, serialized_header_size=113)
 # get req
-
+        if time.time()*1000-msg.timestamp>int(timeout_ms):
+            print("TIMEOUTED CONTENT DELIVERED")
+            continue
+        
         headerList = msg.headers
         model_match = False
         req_id = ''
@@ -265,9 +270,6 @@ while not killer.kill_now:
                     model_match = True
             if k == "req_id":
                 req_id = v.decode()
-            if k == "timestamp" and time.time()*1000-v>timeout_ms:
-                print("TIMEOUTED CONTENT DELIVERED")
-                continue
         if not model_match:
             continue
 
@@ -288,20 +290,20 @@ while not killer.kill_now:
         req = parsed['req']
 
         context = ""
-        temp_req = req
-        try: 
-            temp_context = content["context"].reverse()
+        # temp_req = req
 
-            for _context in temp_context:
-                if _context["type"] != "HUMAN": continue
-                temp_req = f"{_context['message']} {temp_req}"
+        # # try: 
+        # #     temp_context = parsed["context"].reverse()
 
-                if len(temp_req) < 200:    
-                    req = temp_req       
-                else: break
-        except: pass
+        # #     for _context in temp_context:
+        # #         if _context["type"] != "HUMAN": continue
+        # #         temp_req = f"{_context['message']} {temp_req}"
 
-        print(req)
+        # #         if len(temp_req) < 200:    
+        # #             req = temp_req       
+        # #         else: break
+        # # except: pass
+        # print(req)
 
         reqs.append(req)
         print("get req")

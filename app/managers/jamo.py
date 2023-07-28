@@ -10,10 +10,12 @@ sys.path.append(str(wd))
 from jamo import JAMO
 
 class JamoModelManager():
-    def __init__(self, model_path): self.init_model(model_path)
+    def __init__(self, model_path, device="cpu"): 
+        self.device = device
+        self.init_model(model_path, device)
 
     def init_model(self, model_path):
-        self.model = JAMO.from_pretrained("small", model_path, "cpu")
+        self.model = JAMO.from_pretrained("small", model_path, self.device)
         self.model.eval()
 
     @torch.inference_mode()
@@ -47,7 +49,7 @@ class JamoModelManager():
 
 
 @lru_cache(maxsize=1)
-def get_jamo_manager():
-    manager = JamoModelManager()
+def get_jamo_manager(device):
+    manager = JamoModelManager(device)
 
     return manager

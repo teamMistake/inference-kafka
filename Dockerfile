@@ -6,6 +6,8 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 RUN pip install wget
 
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
 # COPY ./model_store /app/model_store
 COPY ./app /app
 

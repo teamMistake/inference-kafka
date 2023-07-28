@@ -13,9 +13,10 @@ from managers import (
 class JamoService:
     def __init__(
         self,
-        model_path: str="model_store/jamo.tar"
+        model_path: str="model_store/jamo.tar",
+        device="cpu"
     ):
-        self.model = JamoModelManager(model_path=model_path)
+        self.model = JamoModelManager(model_path=model_path, device=device)
         self.block_size = 256
 
     @torch.inference_mode()

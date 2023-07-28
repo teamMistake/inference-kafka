@@ -238,7 +238,7 @@ while not killer.kill_now:
     print("Get Requests")
     start = time.time()
 
-    target_time = 1000
+    target_time = 1500 if IS_CUDA else 1000
     poll_time = 50
 
     # for msg in consumer:
@@ -246,7 +246,7 @@ while not killer.kill_now:
         if len(req_ids) >= max_batch_item or time.time() - start > target_time/1000:
             print("timeout!")
             break
-        records = consumer.poll(50, max_records=1)
+        records = consumer.poll(poll_time, max_records=1)
         if records is None or records == {}: continue
 
         for i in records.items():

@@ -41,7 +41,10 @@ class JamoService:
         idx = empty # [B, T, 256 or T_new]
         input_pos = torch.arange(0, T, device=device)
         # input_pos = torch.stack([pos, pos, pos], dim=0)
-
+        
+        # if device == torch.device("cuda")
+            # finished_idxs = torch.zeros(B).long().to(device)
+        # else:
         finished_idxs = torch.zeros(B).to(device)
         
         # generate max_new_tokens tokens
@@ -55,7 +58,10 @@ class JamoService:
 
             idx_next = idx_next.squeeze(1)
             # if all tensor look like [1, 1, 1] and break the loop
-            print(finished_idxs.dtype, eos_id.dtype)
+
+            if idx_next.dtype == torch.long and finished_idxs.dtype != torch.long:
+                finished_idxs = finished_idxs.long()
+            
             finished_idxs[idx_next==eos_id] = input_pos
             if not torch.any(finished_idxs==0):
                 break
@@ -134,6 +140,10 @@ class JamoService:
             idx = idx.index_copy(1, input_pos, idx_next)
 
             idx_next = idx_next.squeeze(1)
+
+            if idx_next.dtype == torch.long and finished_idxs.dtype != torch.long:
+                finished_idxs = finished_idxs.long()
+            
             # if all tensor look like [1, 1, 1] and break the loop
             finished_idxs[idx_next==eos_id] = input_pos
             if not torch.any(finished_idxs==0):

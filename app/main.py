@@ -52,7 +52,7 @@ producer = KafkaProducer(bootstrap_servers=bootstrap,
 class Jamo():
     def __init__(self):
         self.device = "cuda" if IS_CUDA else "cpu"
-        self.jamo = JamoService(self.device)
+        self.jamo = JamoService(device=self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("hg_tokenizer")
         
         self.SOS_TOKEN = "<s>"

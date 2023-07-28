@@ -121,9 +121,9 @@ class JAMO(nn.Module):
         return cls(config, pretrain=pretrain)
     
     @classmethod
-    def from_pretrained(cls, name: str, path: str, device:torch.device=torch.device("cuda")) -> Self:
+    def from_pretrained(cls, name: str, path: str, device="cpu") -> Self:
         model = JAMO.from_name(name)
-        model_state_dict = torch.load(path, map_location="cpu")
+        model_state_dict = torch.load(path, map_location=device)
         state_dict = model_state_dict["model"]
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):

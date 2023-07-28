@@ -70,7 +70,7 @@ class Jamo():
         if not multibatch:
             parsed_prompt = Jamo.parsing_prompt(prompts[0])
             parsed_prompt = f"{self.SOS_TOKEN} {parsed_prompt}"
-            prompt_idx = self.encode(parsed_prompt).squeeze(0)
+            prompt_idx = self.encode(parsed_prompt).squeeze(0).to(self.device)
             # kwgs = {"idx":prompt_idx, "max_token":max_token}
 
             predicted_idx = self.jamo.generate_idx(prompt_idx, max_token=max_token, temperature=temperature, top_k=top_k)
@@ -81,7 +81,7 @@ class Jamo():
             prompt_idx = [self.tokenizer.encode(parsed_prompt) for parsed_prompt in parsed_prompts]
             max_length = max([len(i) for i in prompt_idx])
             prompt_idx = [[1]*(max_length-len(idx))+idx for idx in prompt_idx]
-            prompt_idx = torch.LongTensor(prompt_idx)
+            prompt_idx = torch.LongTensor(prompt_idx).to(self.device)
 
             predicted_idx, finish_idxs = self.jamo.multibatch_generate(prompt_idx, max_token=max_token, temperature=temperature, top_k=top_k)
 
@@ -99,7 +99,7 @@ class Jamo():
             parsed_prompt = f"{self.SOS_TOKEN} {parsed_prompt}"
             cur = len(parsed_prompt)
 
-            prompt_idx = self.encode(parsed_prompt).squeeze(0)
+            prompt_idx = self.encode(parsed_prompt).squeeze(0).to(self.device)
             # kwgs = {"idx":prompt_idx, "max_token":max_token}
 
             full_answer = ""
@@ -134,7 +134,7 @@ class Jamo():
 
             full_answers = []
 
-            prompt_idxes = torch.LongTensor(prompt_idxes)
+            prompt_idxes = torch.LongTensor(prompt_idxes).to(self.device)
 
             try: 
                 tmp_answers = []

@@ -12,7 +12,7 @@ from jamo import JAMO
 class JamoModelManager():
     def __init__(self, model_path, device="cpu"): 
         self.device = device
-        self.init_model(model_path, device)
+        self.init_model(model_path)
 
     def init_model(self, model_path):
         self.model = JAMO.from_pretrained("small", model_path, self.device)

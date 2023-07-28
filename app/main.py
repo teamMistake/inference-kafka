@@ -25,7 +25,10 @@ model_url = os.environ["MODEL_URL"]
 max_batch_item = int(os.environ["MAX_BATCH_SIZE"])
 
 timeout_ms = os.environ["TIMEOUT_MS"]
-IS_CUDA = os.environ["IS_CUDA"]
+try:
+    IS_CUDA = os.environ["IS_CUDA"]
+except: 
+    IS_CUDA = False
 
 print("model download start")
 start = time.time()
@@ -288,20 +291,20 @@ while not killer.kill_now:
         req_ids.append(req_id)        
         req = parsed['req']
 
-        context = ""
+        # context = ""
         # temp_req = req
+# 
+        # try: 
+        #     temp_context = parsed["context"].reverse()
 
-        # # try: 
-        # #     temp_context = parsed["context"].reverse()
+        #     for _context in temp_context:
+        #         if _context["type"] != "HUMAN": continue
+        #         temp_req = f"{_context['message']} {temp_req}"
 
-        # #     for _context in temp_context:
-        # #         if _context["type"] != "HUMAN": continue
-        # #         temp_req = f"{_context['message']} {temp_req}"
-
-        # #         if len(temp_req) < 200:    
-        # #             req = temp_req       
-        # #         else: break
-        # # except: pass
+        #         if len(temp_req) < 200:    
+        #             req = temp_req       
+        #         else: break
+        # except: pass
         # print(req)
 
         reqs.append(req)
